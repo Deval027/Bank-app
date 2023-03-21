@@ -37,7 +37,6 @@ while True:
     if Main_menu == 2:
         while True:
             users = pd.read_csv('users.csv')
-            
             login = input("Enter your username: ")
             login_password = input("Enter your password: ")
             if ((users['user'] == login) & (users['password'] == login_password)).any():
@@ -48,6 +47,7 @@ while True:
         break
 
 while True:
+    users = pd.read_csv('users.csv')
     print("---YOUR ACCOUNT---\n")
     acc = users.loc[users['user'] == login, 'account'].values[0]
     print(f'Welcome: {login}    Account: {acc}')
