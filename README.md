@@ -1,2 +1,2 @@
 # Bank-app
-a bank app with sign in and login features with a database
+a bank app with sign in and login features 
