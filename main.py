@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
 import random
-import sqlite3
+import pandas as pd
 comeback = False
-conn = sqlite3.connect('userdata.db')
+users = pd.DataFrame(columns=['user', 'password', 'account', 'balance'])
+
 while True:
     print("---Welcome to bankingOS---\n")
     print("1.-New user(log in)\n2.-Already registered(sign in)")
@@ -26,10 +26,9 @@ while True:
                     print("Registered successfully")
                     Account_number = random.randint(100000, 999999)
                     account_number = str(Account_number)[:3] + " " + str(Account_number)[3:]
-                    c = conn.cursor()
-                    c.execute('INSERT INTO users (user, password, account_number) '
-                              'VALUES (?, ?, ?)', (user, password, account_number))
-                    conn.commit()
+                    new_line = {'user': user,'password': password,'account':account_number,'balance': 0}
+                    users = users.append(new_line, ignore_index=True)
+                    users.to_csv('users.csv', index=True)
                     print("Your number account is: "+account_number)
                     comeback = True
                     break
@@ -37,20 +36,21 @@ while True:
                 break
     if Main_menu == 2:
         while True:
+            users = pd.read_csv('users.csv')
+            
             login = input("Enter your username: ")
             login_password = input("Enter your password: ")
-            c = conn.cursor()
-            c.execute('SELECT * FROM users WHERE user = ? AND password = ?', (login, login_password))
-            user_found = c.fetchone()
-            if user_found is None:
-                print('Wrong username or password')
-            else:
+            if ((users['user'] == login) & (users['password'] == login_password)).any():
                 break
+            else:
+                print('Wrong username or password')
+
         break
 
 while True:
     print("---YOUR ACCOUNT---\n")
-    print(f'Welcome: {login}    Account: {user_found[3]}')
+    acc = users.loc[users['user'] == login, 'account'].values[0]
+    print(f'Welcome: {login}    Account: {acc}')
     option = input("1.-Check balance\n2.-Add founds\n3.-Withdrawal\n4.-Make a deposit\n5.-Exit\nSelect an option: ")
     if option.isdigit():
         option = int(option)
@@ -59,7 +59,9 @@ while True:
         else:
             print("Enter a valid option")
     if option == 1:
-        print("Your balance is: $"+str(user_found[4]))
+        balance = users.loc[users['user'] == login , 'balance'].values[0]
+        balance = str(balance)
+        print("Your balance is: $"+balance)
         while True:
             back = input("Press b to go back: ")
             if back == "b":
@@ -73,55 +75,56 @@ while True:
                 if amount > 10000 and amount <= 0:
                     print("Out of limit")
                 else:
-                    new_balance = user_found[4]+int(amount)
-                    c = conn.cursor()
-                    c.execute('UPDATE users SET balance = ? WHERE user = ? ', (new_balance,login))
-                    conn.commit()
-                    print("Your new balance is: $"+str(new_balance))
+                    users.loc[users['user'] == login, 'balance'] += amount
+                    balance = users.loc[users['user'] == login, 'balance'].values[0]
+                    balance = str(balance)
+                    users.to_csv('users.csv', index=True)
+                    print("Your new balance is: $"+str(balance))
                     break
             else:
                 print("Can't make the deposit")
     if option == 3:
-        if user_found[4] == 0:
-            print("Not possible to withdrawal current balance is: $"+str(user_found[4]))
+        balance = users.loc[users['user'] == login, 'balance'].values[0]
+        if balance == 0:
+            print("Not possible to withdrawal current balance is: $"+str(balance))
             continue
         while True:
             withdrawal = input("How much would you like to withdrawal: ")
             if withdrawal.isdigit():
                 withdrawal = int(withdrawal)
-                if withdrawal > user_found[4]:
+                if withdrawal > balance:
                     print("Withdrawal is bigger than the current balance")
                 else:
-                    new_balance = user_found[4] - withdrawal
-                    c = conn.cursor()
-                    c.execute('UPDATE users SET balance = ? WHERE user = ? ', (new_balance, login))
-                    conn.commit()
+                    new_balance = balance - withdrawal
+                    users.loc[users['user'] == login, 'balance'] -= withdrawal
+                    users.to_csv('users.csv', index=True)
                     print("withdrawal of $" + str(withdrawal),"made with success new balance is: $"+str(new_balance))
                     break
             else:
                 print("Enter a valid number")
     if option == 4:
         deposit_number = input("Enter the account number you would like to deposit: ")
-        c.execute('SELECT * FROM users WHERE account_number = ?', (deposit_number,))
-        account_found = c.fetchone()
-        if account_found is None:
+        account_num = users.loc[users['user'] == login, 'account'].values[0]
+        if deposit_number not in users["account"].values:
             print("account not found")
         else:
+            balance = users.loc[users['user'] == login, 'balance'].values[0]
             deposit = input("How much would you like to deposit: ")
             if deposit.isdigit():
-                if int(deposit) > user_found[4]:
+                if int(deposit) > balance:
                     print("Not enough balance")
                 else:
-                    new_balance = user_found[4] - int(deposit)
-                    deposit_made = account_found[4] + int(deposit)
-                    c = conn.cursor()
-                    c.execute('UPDATE users SET balance = ? WHERE account_number = ?', (new_balance, account_found[3]))
-                    c.execute('UPDATE users SET balance = ? WHERE account_number = ?', (deposit_made, deposit_number))
-                    conn.commit()
+                    account_li = users.loc[users['account'] == deposit_number]
+                    actual_balance = account_li.iloc[0]['balance']
+                    deposit = int(deposit)
+                    new_balance = actual_balance + deposit
+                    users.loc[users['user'] == login, 'balance'] -= deposit
+                    less = users.loc[users['user'] == login, 'balance'].values[0]
+                    users.loc[users['account'] == deposit_number, 'balance'] = new_balance
+                    users.to_csv('users.csv', index=True)
                     print("deposit made with success")
             else:
                 print("cant make deposit")
 
     if option == 5:
-        conn.close()
         exit()
