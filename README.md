@@ -1,2 +1,2 @@
 # Bank-app
-a bank app with sign in and login features 
+A simple terminal app i created while learning python
